@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send a file. It disappears in an hour.</title>
+<style>
+  :root{--bg:#f3f6f4;--ink:#12241e;--muted:#5b6f67;--line:#c9d6d0;--accent:#0f6b4f;--card:#fff}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d1714;--ink:#e6f0ec;--muted:#8fa69c;--line:#2a3d36;--accent:#4cc79b;--card:#14211d}}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif;display:grid;place-items:center;padding:24px}
+  main{width:100%;max-width:560px}
+  h1{font-size:clamp(2rem,6vw,3rem);line-height:1.1;margin:0 0 8px;letter-spacing:-.02em}
+  p.sub{color:var(--muted);margin:0 0 28px}
+  #drop{background:var(--card);border:2px dashed var(--line);border-radius:6px;padding:48px 20px;text-align:center;cursor:pointer;transition:border-color .15s}
+  #drop:hover,#drop.over,#drop:focus-visible{border-color:var(--accent);outline:none}
+  #drop b{display:block;font-size:1.15rem}
+  #drop span{color:var(--muted);font-size:.9rem}
+  #status{margin-top:20px;display:none}
+  .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
+  .row{display:flex;gap:8px;margin-top:12px}
+  input{flex:1;min-width:0;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.9rem}
+  button{padding:12px 18px;border:0;border-radius:4px;background:var(--accent);color:#fff;font:inherit;font-weight:bold;cursor:pointer}
+  @media (prefers-color-scheme:dark){button{color:#08150f}}
+  .err{color:#c0392b}
+  footer{margin-top:40px;color:var(--muted);font-size:.8rem}
+  #ad{margin-top:32px;text-align:center}
+  #ad small{display:block;color:var(--muted);font-size:.7rem;margin-bottom:4px}
+  .note{color:var(--muted);font-size:.85rem;margin:12px 0 0}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Send a file. It disappears in an hour.</h1>
+  <p class="sub">Upload up to 200MB and get a download link. The file is deleted automatically after 60 minutes.</p>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Choose a file to upload">
+    <b>Drop a file here or click to choose</b>
+    <span>Max 200MB</span>
+  </div>
+  <input type="file" id="file" hidden>
+  <p class="note">By uploading, you agree to the <a href="terms.html">Terms</a>. Do not upload illegal or private content.</p>
+
+  <div id="status" aria-live="polite">
+    <div id="msg"></div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="row" id="result" style="display:none">
+      <input id="link" readonly>
+      <button id="copy">Copy link</button>
+    </div>
+  </div>
+
+  <!-- Ad slot: hidden until you paste ad code into AD_HTML below -->
+  <div id="ad" hidden><small>Advertisement</small><div id="adbox"></div></div>
+
+  <footer>
+    <a href="terms.html">Terms &amp; Privacy</a> &middot;
+    <a class="mail" href="#">Report abuse or request removal</a>
+  </footer>
+</main>
+
+<script>
+// ===== SETTINGS: edit these =====
+const API = "https://fileshare-api.YOUR-SUBDOMAIN.workers.dev"; // your Worker URL, no trailing slash
+const CONTACT_EMAIL = "your-email@example.com";                  // abuse / takedown email
+const AD_HTML = "";  // paste your ad network's snippet here (leave empty for no ads)
+// ================================
+document.querySelectorAll(".mail").forEach((a) => (a.href = "mailto:" + CONTACT_EMAIL + "?subject=Abuse%20report"));
+if (AD_HTML) {
+  const box = document.getElementById("adbox");
+  box.innerHTML = AD_HTML;
+  // innerHTML does not run <script> tags, so re-create them
+  box.querySelectorAll("script").forEach((old) => {
+    const s = document.createElement("script");
+    [...old.attributes].forEach((a) => s.setAttribute(a.name, a.value));
+    s.textContent = old.textContent; old.replaceWith(s);
+  });
+  document.getElementById("ad").hidden = false;
+}
+const MAX = 200 * 1024 * 1024;
+
+const $ = (id) => document.getElementById(id);
+const drop = $("drop"), input = $("file");
+
+drop.onclick = () => input.click();
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") input.click(); };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
+drop.ondragleave = () => drop.classList.remove("over");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); };
+input.onchange = () => input.files[0] && start(input.files[0]);
+
+function say(text, isErr) { $("status").style.display = "block"; $("msg").textContent = text; $("msg").className = isErr ? "err" : ""; }
+
+async function start(file) {
+  $("result").style.display = "none"; $("prog").style.width = "0";
+  if (file.size > MAX) return say("That file is over 200MB. Choose a smaller one.", true);
+  try {
+    say("Preparing upload...");
+    const r = await fetch(API + "/init", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: file.name, size: file.size }) });
+    const init = await r.json();
+    if (!r.ok) return say(init.error || "Could not start upload.", true);
+
+    await new Promise((resolve, reject) => {
+      const x = new XMLHttpRequest();
+      x.open("PUT", init.uploadUrl);
+      x.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); $("prog").style.width = p + "%"; say("Uploading " + p + "%"); } };
+      x.onload = () => (x.status < 300 ? resolve() : reject(new Error("Upload failed (" + x.status + ")")));
+      x.onerror = () => reject(new Error("Network error during upload."));
+      x.send(file);
+    });
+
+    say("Finishing...");
+    const d = await fetch(API + "/done", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: init.key }) });
+    const done = await d.json();
+    if (!d.ok) return say(done.error || "Upload could not be verified.", true);
+
+    say("Done. This link works for 60 minutes.");
+    $("link").value = done.link; $("result").style.display = "flex";
+  } catch (e) { say(e.message, true); }
+}
+
+$("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("link").value); } catch { $("link").select(); document.execCommand("copy"); }
+  $("copy").textContent = "Copied";
+  setTimeout(() => ($("copy").textContent = "Copy link"), 1500);
+};
+</script>
+</body>
+</html>

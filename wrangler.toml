@@ -1,0 +1,26 @@
+name = "fileshare-api"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[triggers]
+crons = ["*/10 * * * *"]   # cleanup every 10 minutes
+
+[vars]
+B2_BUCKET   = "fileshare-tmp-yourname-482"
+B2_ENDPOINT = "s3.us-west-004.backblazeb2.com"
+B2_REGION   = "us-west-004"
+# Change this to your GitHub Pages URL (no trailing slash), later your domain
+# Comma-separate several origins. When you buy a domain, add it here, e.g.
+# "https://YOUR-GITHUB-USERNAME.github.io,https://yourdomain.com"
+ALLOWED_ORIGIN = "https://YOUR-GITHUB-USERNAME.github.io"
+
+# Secrets (NOT stored here). Set with:
+#   npx wrangler secret put B2_KEY_ID
+#   npx wrangler secret put B2_APP_KEY
+
+# Rate limit: 10 upload starts per minute per IP (period must be 10 or 60)
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }

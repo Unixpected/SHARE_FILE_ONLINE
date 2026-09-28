@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terms &amp; Privacy</title>
+<style>
+  :root{--bg:#f3f6f4;--ink:#12241e;--muted:#5b6f67;--accent:#0f6b4f}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d1714;--ink:#e6f0ec;--muted:#8fa69c;--accent:#4cc79b}}
+  body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Georgia,"Times New Roman",serif;padding:32px 20px}
+  main{max-width:640px;margin:0 auto}
+  h1{font-size:2rem;margin:0 0 4px} h2{font-size:1.2rem;margin:28px 0 6px}
+  p,li{margin:6px 0} .m{color:var(--muted)} a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Terms &amp; Privacy</h1>
+  <p class="m">Last updated: September 28, 2026</p>
+
+  <h2>What this service does</h2>
+  <p>You upload a file (up to 200MB) and get a download link. The link works for 60 minutes. After that the file is deleted automatically and cannot be recovered.</p>
+
+  <h2>What you may not upload</h2>
+  <ul>
+    <li>Anything illegal, including child sexual abuse material, which we report to the authorities.</li>
+    <li>Malware, viruses, or files meant to harm devices or steal data.</li>
+    <li>Content you do not have the right to share (pirated or copyrighted material).</li>
+    <li>Other people's private information shared without their consent.</li>
+  </ul>
+  <p>You are responsible for what you upload and share. We may delete any file at any time and block anyone who breaks these rules.</p>
+
+  <h2>Report abuse or request removal</h2>
+  <p>To report a file or ask for removal, email <a class="mail" href="#"></a> and include the download link. We aim to act quickly on valid reports.</p>
+
+  <h2>Privacy</h2>
+  <ul>
+    <li>Files are stored privately with our storage provider and are only reachable through the link. Anyone who has the link can download the file until it expires, so share it carefully.</li>
+    <li>We do not read your files. Our hosting provider may log technical data such as IP addresses to keep the service running and prevent abuse.</li>
+    <li>We may show ads. Ad providers may use cookies under their own policies.</li>
+  </ul>
+
+  <h2>No warranty</h2>
+  <p>The service is provided as is, with no guarantee that it is always available or that files will be delivered. Do not use it as your only copy of anything important. We are not liable for lost files or for content uploaded by others. Download files from unknown senders at your own risk.</p>
+
+  <p><a href="index.html">Back to upload</a></p>
+</main>
+<script>
+  // Keep in sync with CONTACT_EMAIL in index.html
+  const CONTACT_EMAIL = "your-email@example.com";
+  document.querySelectorAll(".mail").forEach((a) => { a.href = "mailto:" + CONTACT_EMAIL; a.textContent = CONTACT_EMAIL; });
+</script>
+</body>
+</html>
