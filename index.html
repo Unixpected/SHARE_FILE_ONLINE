@@ -95,6 +95,7 @@ function say(text, isErr) { $("status").style.display = "block"; $("msg").textCo
 
 async function start(file) {
   $("result").style.display = "none"; $("prog").style.width = "0";
+  if (API.includes("YOUR-SUBDOMAIN")) return say("Setup not finished: put your real Worker URL in the API line of index.html.", true);
   if (file.size > MAX) return say("That file is over 200MB. Choose a smaller one.", true);
   try {
     say("Preparing upload...");
