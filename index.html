@@ -109,7 +109,7 @@ async function start(file) {
       x.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); $("prog").style.width = p + "%"; say("Uploading " + p + "%"); } };
       x.onload = () => (x.status < 300 ? resolve() : reject(new Error("Upload failed (" + x.status + ")")));
       x.onerror = () => reject(new Error("Network error during upload."));
-      x.send(file);
+      x.send(file.slice(0, file.size, "")); // no Content-Type header, so the simple CORS preset is enough
     });
 
     say("Finishing...");
