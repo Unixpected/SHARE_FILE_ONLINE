@@ -108,6 +108,71 @@ export default {
       return Response.redirect(signed, 302);
     }
 
+    // ===== Public comments (stored in D1 database bound as env.DB) =====
+    if (url.pathname === "/comments" && req.method === "GET") {
+      if (!env.DB) return json(env, { error: "Comments are not set up yet." }, 503);
+      const { results } = await env.DB
+        .prepare(
+          "WITH top AS (SELECT id FROM comments WHERE parent_id IS NULL ORDER BY created_at DESC LIMIT 50) " +
+          "SELECT id, name, text, created_at, likes, stars, parent_id FROM comments " +
+          "WHERE id IN (SELECT id FROM top) OR parent_id IN (SELECT id FROM top) ORDER BY created_at ASC"
+        )
+        .all();
+      return json(env, { comments: results });
+    }
+
+    if (url.pathname === "/comments" && req.method === "POST") {
+      if (!env.DB) return json(env, { error: "Comments are not set up yet." }, 503);
+      if (env.RATE_LIMITER) {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        const { success } = await env.RATE_LIMITER.limit({ key: "c:" + ip });
+        if (!success) return json(env, { error: "Too many requests. Please wait a minute." }, 429);
+      }
+      const body = await req.json().catch(() => ({}));
+      const text = String(body.text || "").trim().slice(0, 500);
+      const name = String(body.name || "").trim().slice(0, 40) || "Anonymous";
+      if (!text) return json(env, { error: "Please write a comment." }, 400);
+      // Replies: one level only. Replying to a reply attaches to the original comment.
+      let parent_id = null;
+      if (body.parent_id) {
+        const par = await env.DB
+          .prepare("SELECT id, parent_id FROM comments WHERE id = ?")
+          .bind(String(body.parent_id).slice(0, 40))
+          .first();
+        if (!par) return json(env, { error: "The comment you are replying to no longer exists." }, 404);
+        parent_id = par.parent_id || par.id;
+      }
+      const id = randomId();
+      const created_at = Date.now();
+      await env.DB
+        .prepare("INSERT INTO comments (id, name, text, created_at, likes, stars, parent_id) VALUES (?, ?, ?, ?, 0, 0, ?)")
+        .bind(id, name, text, created_at, parent_id)
+        .run();
+      return json(env, { comment: { id, name, text, created_at, likes: 0, stars: 0, parent_id } }, 201);
+    }
+
+    // POST /comments/<id>/<like|unlike|star|unstar>
+    const rx = /^\/comments\/([\w-]{1,40})\/(like|unlike|star|unstar)$/.exec(url.pathname);
+    if (rx && req.method === "POST") {
+      if (!env.DB) return json(env, { error: "Comments are not set up yet." }, 503);
+      if (env.RATE_LIMITER_REACT) {
+        const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+        const { success } = await env.RATE_LIMITER_REACT.limit({ key: "r:" + ip });
+        if (!success) return json(env, { error: "Too many requests. Please wait a minute." }, 429);
+      }
+      const [, id, action] = rx;
+      const sql = {
+        like:   "UPDATE comments SET likes = likes + 1 WHERE id = ?",
+        unlike: "UPDATE comments SET likes = MAX(likes - 1, 0) WHERE id = ?",
+        star:   "UPDATE comments SET stars = stars + 1 WHERE id = ?",
+        unstar: "UPDATE comments SET stars = MAX(stars - 1, 0) WHERE id = ?",
+      }[action];
+      await env.DB.prepare(sql).bind(id).run();
+      const row = await env.DB.prepare("SELECT likes, stars FROM comments WHERE id = ?").bind(id).first();
+      if (!row) return json(env, { error: "Comment not found" }, 404);
+      return json(env, row);
+    }
+
     return new Response("OK");
   },
 

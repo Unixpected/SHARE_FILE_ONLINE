@@ -29,6 +29,35 @@
   #ad small{display:block;color:var(--muted);font-size:.7rem;margin-bottom:4px}
   .note{color:var(--muted);font-size:.85rem;margin:12px 0 0}
   a{color:var(--accent)}
+  /* ===== Comments ===== */
+  #comments{margin-top:40px}
+  #comments h2{font-size:1.3rem;margin:0 0 4px}
+  #comments .hint{color:var(--muted);font-size:.85rem;margin:0 0 14px}
+  #cform{display:grid;gap:8px}
+  #cform input,#cform textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.9rem}
+  #cform textarea{min-height:80px;resize:vertical}
+  #cform .crow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #cform .count{color:var(--muted);font-size:.8rem}
+  #cerr{color:#c0392b;font-size:.85rem;min-height:1.2em;margin:6px 0 0}
+  #clist{margin-top:16px;display:grid;gap:10px}
+  .cm{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  .cm .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .cm .who{font-weight:bold;font-size:.95rem;overflow-wrap:anywhere}
+  .cm time{color:var(--muted);font-size:.75rem;white-space:nowrap}
+  .cm p{margin:6px 0 10px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem}
+  .cm .acts{display:flex;gap:8px}
+  .cm .acts button{padding:5px 12px;background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:normal;font-size:.8rem}
+  .cm .acts button:hover{border-color:var(--accent)}
+  .cm .acts button.on{color:var(--accent);border-color:var(--accent);font-weight:bold}
+  #cempty{color:var(--muted);font-size:.9rem}
+  .replies{margin:8px 0 0 14px;padding-left:12px;border-left:2px solid var(--line);display:grid;gap:8px}
+  .rform{display:grid;gap:6px;margin-top:10px}
+  .rform input,.rform textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.85rem}
+  .rform textarea{min-height:64px;resize:vertical}
+  .rform .brow{display:flex;gap:8px;align-items:center}
+  .rform .brow button{padding:8px 14px;font-size:.85rem}
+  .rform .brow .cancel{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:normal}
+  .rform .rerr{color:#c0392b;font-size:.8rem}
 </style>
 </head>
 <body>
@@ -52,11 +81,32 @@
     </div>
   </div>
 
+  <!-- Upload Container Above -->
+
+  <!-- Native Adsterra Banner -->
+  <div style="width: 100%; display: flex; justify-content: center; margin-top: 25px;">
+    <script async="async" data-cfasync="false" src="https://pl31590022.profitableratecpmnetwork.com/e6ea2fd96bd57a26d623aa5d7189de4/invoke.js"></script>
+    <div id="container-e6ea2fd96bd57a26d623aa5d7189de4"></div>
+  </div>
+
+  <section id="comments">
+    <h2>Public comments</h2>
+    <p class="hint">Anyone can see these. Name is optional. Please don't post private information.</p>
+    <div id="cform">
+      <input id="cname" maxlength="40" placeholder="Name (optional)" autocomplete="off">
+      <textarea id="ctext" maxlength="500" placeholder="Write a comment..."></textarea>
+      <div class="crow"><span class="count" id="ccount">0 / 500</span><button id="csend" type="button">Post comment</button></div>
+    </div>
+    <p id="cerr" aria-live="polite"></p>
+    <div id="clist"><p id="cempty">Loading comments...</p></div>
+  </section>
+
   <!-- Ad slot: hidden until you paste ad code into AD_HTML below -->
   <div id="ad" hidden><small>Advertisement</small><div id="adbox"></div></div>
 
   <footer>
-    <a href="terms.html">Terms &amp; Privacy</a> &middot;
+    <a href="terms.html">Terms</a> &middot;
+    <a href="privacy.html">Privacy Policy</a> &middot;
     <a class="mail" href="#">Report abuse or request removal</a>
   </footer>
 </main>
@@ -132,6 +182,147 @@ $("copy").onclick = async () => {
   $("copy").textContent = "Copied";
   setTimeout(() => ($("copy").textContent = "Copy link"), 1500);
 };
+</script>
+<script>
+// ===== Public comments (with replies) =====
+(() => {
+  const g = (id) => document.getElementById(id);
+  const list = g("clist"), errEl = g("cerr"), ta = g("ctext");
+  const KEY = "reacts_v1";
+  let mine = {};
+  try { mine = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch {} };
+  const fail = (m) => { errEl.textContent = m || ""; };
+
+  function ago(t) {
+    const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    if (s < 86400) return Math.floor(s / 3600) + " h ago";
+    if (s < 2592000) return Math.floor(s / 86400) + " d ago";
+    return new Date(t).toLocaleDateString();
+  }
+
+  async function post(payload) {
+    const r = await fetch(API + "/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Could not post.");
+    return d.comment;
+  }
+
+  function reactBtn(c, kind, label, onLabel) {
+    const b = document.createElement("button");
+    b.type = "button";
+    const refresh = () => {
+      const on = !!(mine[c.id] && mine[c.id][kind]);
+      b.className = on ? "on" : "";
+      b.textContent = (on ? onLabel : label) + " " + (kind === "like" ? c.likes : c.stars);
+    };
+    refresh();
+    b.onclick = async () => {
+      const on = !!(mine[c.id] && mine[c.id][kind]);
+      b.disabled = true;
+      try {
+        const r = await fetch(API + "/comments/" + encodeURIComponent(c.id) + "/" + (on ? "un" + kind : kind), { method: "POST" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Could not save.");
+        c.likes = d.likes; c.stars = d.stars;
+        mine[c.id] = Object.assign({}, mine[c.id], { [kind]: !on });
+        save(); fail("");
+        b.parentNode.querySelectorAll("button").forEach((x) => x.dispatchEvent(new Event("refresh")));
+      } catch (e) { fail(e.message); }
+      b.disabled = false;
+    };
+    b.addEventListener("refresh", refresh);
+    return b;
+  }
+
+  function openReplyForm(el, c, ctx) {
+    const old = el.querySelector(".rform");
+    if (old) { old.remove(); return; }
+    const f = document.createElement("div"); f.className = "rform";
+    const n = document.createElement("input"); n.maxLength = 40; n.placeholder = "Name (optional)"; n.value = g("cname").value;
+    const t = document.createElement("textarea"); t.maxLength = 500; t.placeholder = "Write a reply...";
+    if (c.parent_id) t.value = "@" + (c.name || "Anonymous") + " ";
+    const row = document.createElement("div"); row.className = "brow";
+    const send = document.createElement("button"); send.type = "button"; send.textContent = "Post reply";
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel"; cancel.textContent = "Cancel";
+    const err = document.createElement("span"); err.className = "rerr";
+    row.append(send, cancel, err);
+    f.append(n, t, row);
+    cancel.onclick = () => f.remove();
+    send.onclick = async () => {
+      if (!t.value.trim()) { err.textContent = "Please write a reply."; t.focus(); return; }
+      send.disabled = true; err.textContent = "";
+      try {
+        const r = await post({ name: n.value, text: t.value, parent_id: ctx.topId });
+        ctx.replies.append(commentEl(r, ctx));
+        f.remove();
+      } catch (e) { err.textContent = e.message; send.disabled = false; }
+    };
+    el.append(f); t.focus();
+  }
+
+  function commentEl(c, ctx) {
+    const el = document.createElement("div"); el.className = "cm";
+    const top = document.createElement("div"); top.className = "top";
+    const who = document.createElement("span"); who.className = "who"; who.textContent = c.name || "Anonymous";
+    const tm = document.createElement("time"); tm.textContent = ago(c.created_at);
+    top.append(who, tm);
+    const p = document.createElement("p"); p.textContent = c.text;
+    const acts = document.createElement("div"); acts.className = "acts";
+    const rb = document.createElement("button"); rb.type = "button"; rb.textContent = "\u21A9 Reply";
+    rb.onclick = () => openReplyForm(el, c, ctx);
+    acts.append(reactBtn(c, "like", "\u2661 Like", "\u2665 Unlike"), reactBtn(c, "star", "\u2606 Star", "\u2605 Starred"), rb);
+    el.append(top, p, acts);
+    return el;
+  }
+
+  function thread(c, replies) {
+    const wrap = document.createElement("div");
+    const repliesEl = document.createElement("div"); repliesEl.className = "replies";
+    const ctx = { topId: c.id, replies: repliesEl };
+    wrap.append(commentEl(c, ctx), repliesEl);
+    replies.forEach((r) => repliesEl.append(commentEl(r, ctx)));
+    return wrap;
+  }
+
+  function show(all) {
+    list.textContent = "";
+    const tops = all.filter((c) => !c.parent_id).sort((a, b) => b.created_at - a.created_at);
+    if (!tops.length) { const e = document.createElement("p"); e.id = "cempty"; e.textContent = "No comments yet. Be the first."; list.append(e); return; }
+    tops.forEach((c) => {
+      const reps = all.filter((r) => r.parent_id === c.id).sort((a, b) => a.created_at - b.created_at);
+      list.append(thread(c, reps));
+    });
+  }
+
+  async function load() {
+    try {
+      const r = await fetch(API + "/comments");
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
+      show(d.comments);
+    } catch { list.innerHTML = '<p id="cempty">Comments could not be loaded right now.</p>'; }
+  }
+
+  ta.oninput = () => { g("ccount").textContent = ta.value.length + " / 500"; };
+
+  g("csend").onclick = async () => {
+    const text = ta.value.trim();
+    if (!text) { fail("Please write a comment."); ta.focus(); return; }
+    const b = g("csend"); b.disabled = true; fail("");
+    try {
+      const c = await post({ name: g("cname").value, text });
+      ta.value = ""; g("ccount").textContent = "0 / 500";
+      const empty = g("cempty"); if (empty) list.textContent = "";
+      list.prepend(thread(c, []));
+    } catch (e) { fail(e.message); }
+    b.disabled = false;
+  };
+
+  load();
+})();
 </script>
 </body>
 </html>

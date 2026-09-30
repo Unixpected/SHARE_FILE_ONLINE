@@ -24,3 +24,18 @@ name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 10, period = 60 }
+
+# Rate limit for likes/stars on comments: 30 per minute per IP
+[[unsafe.bindings]]
+name = "RATE_LIMITER_REACT"
+type = "ratelimit"
+namespace_id = "1002"
+simple = { limit = 30, period = 60 }
+
+# Comments database (Cloudflare D1). Create it, then paste the database_id here:
+#   npx wrangler d1 create share-comments
+#   npx wrangler d1 execute share-comments --remote --file=schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "share-comments"
+database_id = "PASTE-YOUR-DATABASE-ID-HERE"
