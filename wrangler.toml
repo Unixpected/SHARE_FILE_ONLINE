@@ -12,7 +12,7 @@ B2_REGION   = "us-west-004"
 # Change this to your GitHub Pages URL (no trailing slash), later your domain
 # Comma-separate several origins. When you buy a domain, add it here, e.g.
 # "https://YOUR-GITHUB-USERNAME.github.io,https://yourdomain.com"
-ALLOWED_ORIGIN = "https://unixpected.github.io"
+ALLOWED_ORIGIN = "https://unixpected.github.io,http://file_share.unixpected05.online,https://file_share.unixpected05.online"
 
 # Secrets (NOT stored here). Set with:
 #   npx wrangler secret put B2_KEY_ID
