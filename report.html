@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report a file</title>
+<style>
+  :root{--bg:#f3f6f4;--ink:#12241e;--muted:#5b6f67;--accent:#0f6b4f;--line:#c9d6d0;--card:#fff}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d1714;--ink:#e6f0ec;--muted:#8fa69c;--accent:#4cc79b;--line:#2a3d36;--card:#14211d}}
+  body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 Georgia,"Times New Roman",serif;padding:32px 20px}
+  main{max-width:680px;margin:0 auto}
+  h1{font-size:2rem;margin:0 0 4px} h2{font-size:1.2rem;margin:28px 0 6px}
+  p,li{margin:6px 0} .m{color:var(--muted)} a{color:var(--accent)}
+  .ph{background:#fff3b0;color:#000;padding:0 3px;border-radius:3px}
+  label{display:block;margin:14px 0 4px;font-weight:bold}
+  select,input,textarea{width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+  textarea{min-height:120px} button{margin-top:18px;padding:12px 20px;font:inherit;border:0;border-radius:8px;background:var(--accent);color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+  <h1>Report a file</h1>
+  <p class="m">Use this to report illegal, harmful, or infringing content, or to request removal. We can only find a file if you give us its full download link. Files are deleted automatically after 60 minutes.</p>
+
+  <label for="link">Download link of the file</label>
+  <input id="link" placeholder="https://.../d/...">
+
+  <label for="reason">Reason</label>
+  <select id="reason">
+    <option>Child sexual abuse material</option>
+    <option>Malware or phishing</option>
+    <option>Copyright infringement</option>
+    <option>Private information / non-consensual images</option>
+    <option>Harassment, threats, or fraud</option>
+    <option>Other</option>
+  </select>
+
+  <label for="details">Details (optional)</label>
+  <textarea id="details" placeholder="Tell us what is wrong. For copyright, include your name and the work concerned."></textarea>
+
+  <label for="from">Your email (optional, so we can reply)</label>
+  <input id="from" type="email">
+
+  <button id="send">Prepare report email</button>
+  <p class="m">This opens your email app with the report filled in. If nothing opens, email <a class="mail" href="#"></a> directly. For urgent child-safety reports you may also contact your local authorities.</p>
+  <p><a href="index.html">Back to upload</a> &middot; <a href="terms.html">Terms</a> &middot; <a href="privacy.html">Privacy</a></p>
+</main>
+<script>
+  const CONTACT_EMAIL = "unixpected@proton.me";
+  const $ = (id) => document.getElementById(id);
+  document.querySelectorAll(".mail").forEach((a) => { a.href = "mailto:" + CONTACT_EMAIL; a.textContent = CONTACT_EMAIL; });
+  $("send").onclick = () => {
+    if (!$("link").value.trim()) { $("link").focus(); return; }
+    const body = "Link: " + $("link").value.trim() + "\n" + "Reason: " + $("reason").value + "\n" +
+      "Reporter email: " + ($("from").value.trim() || "(not given)") + "\n\nDetails:\n" + $("details").value;
+    location.href = "mailto:" + CONTACT_EMAIL + "?subject=" + encodeURIComponent("File report: " + $("reason").value) + "&body=" + encodeURIComponent(body);
+  };
+</script>
+</body>
+</html>
