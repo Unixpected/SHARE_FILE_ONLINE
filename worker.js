@@ -70,8 +70,17 @@ export default {
     if (url.pathname === "/done" && req.method === "POST") {
       const { key } = await req.json().catch(() => ({}));
       if (!key || key.split("/").length !== 2) return json(env, { error: "Bad key" }, 400);
-      const head = await client(env).fetch(objUrl(env, key), { method: "HEAD" });
-      if (!head.ok) return json(env, { error: "Upload not found" }, 404);
+      // Retry a few times: the object may not be visible instantly, and B2 can return transient errors
+      let head;
+      for (let i = 0; i < 4; i++) {
+        head = await client(env).fetch(objUrl(env, key), { method: "HEAD" });
+        if (head.ok || head.status === 403) break; // 403 = config/signature problem, retrying won't help
+        await new Promise((r) => setTimeout(r, 500 * (i + 1)));
+      }
+      if (!head.ok) {
+        console.log("DONE_HEAD_FAILED", head.status, key); // view with: npx wrangler tail
+        return json(env, { error: `Upload not found (storage returned ${head.status}). Please try again.` }, head.status === 404 ? 404 : 502);
+      }
       const size = Number(head.headers.get("content-length"));
       if (size > MAX_BYTES) {
         await client(env).fetch(objUrl(env, key), { method: "DELETE" });

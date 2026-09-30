@@ -113,8 +113,13 @@ async function start(file) {
     });
 
     say("Finishing...");
-    const d = await fetch(API + "/done", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: init.key }) });
-    const done = await d.json();
+    let d, done;
+    for (let i = 0; i < 3; i++) {
+      d = await fetch(API + "/done", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: init.key }) });
+      done = await d.json();
+      if (d.ok || d.status === 413) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
     if (!d.ok) return say(done.error || "Upload could not be verified.", true);
 
     say("Done. This link works for 60 minutes.");
