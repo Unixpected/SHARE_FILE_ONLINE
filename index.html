@@ -4,165 +4,290 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Send a file. It disappears in an hour.</title>
+<meta name="description" content="Upload a file, get a download link. The file is deleted automatically after 60 minutes.">
+<link rel="preload" href="fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-  :root{--bg:#f3f6f4;--ink:#12241e;--muted:#5b6f67;--line:#c9d6d0;--accent:#0f6b4f;--card:#fff}
-  @media (prefers-color-scheme:dark){:root{--bg:#0d1714;--ink:#e6f0ec;--muted:#8fa69c;--line:#2a3d36;--accent:#4cc79b;--card:#14211d}}
+  @font-face{font-family:"Bricolage Grotesque";src:url(fonts/bricolage.woff2) format("woff2");font-weight:200 800;font-display:swap}
+
+  :root{
+    --bg:#eef0f6; --panel:#ffffff; --sunk:#f4f5fa; --ink:#12142a; --muted:#5a5f7d; --line:#d9dcea;
+    --accent:#3446e8; --accent-ink:#ffffff; --fuse:#e4572e; --danger:#c0392b;
+    --font:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0e1020; --panel:#161931; --sunk:#10132a; --ink:#e8eaf8; --muted:#9298ba; --line:#2a2e52;
+      --accent:#8c9bff; --accent-ink:#0e1020; --fuse:#ff8a5c; --danger:#ff7b6b}
+  }
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,"Times New Roman",serif;display:grid;place-items:center;padding:24px}
-  main{width:100%;max-width:560px}
-  h1{font-size:clamp(2rem,6vw,3rem);line-height:1.1;margin:0 0 8px;letter-spacing:-.02em}
-  p.sub{color:var(--muted);margin:0 0 28px}
-  #drop{background:var(--card);border:2px dashed var(--line);border-radius:6px;padding:48px 20px;text-align:center;cursor:pointer;transition:border-color .15s}
-  #drop:hover,#drop.over,#drop:focus-visible{border-color:var(--accent);outline:none}
-  #drop b{display:block;font-size:1.15rem}
-  #drop span{color:var(--muted);font-size:.9rem}
-  #status{margin-top:20px;display:none}
-  .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:8px}
-  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .1s}
-  .row{display:flex;gap:8px;margin-top:12px}
-  input{flex:1;min-width:0;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.9rem}
-  button{padding:12px 18px;border:0;border-radius:4px;background:var(--accent);color:#fff;font:inherit;font-weight:bold;cursor:pointer}
-  @media (prefers-color-scheme:dark){button{color:#08150f}}
-  .err{color:#c0392b}
-  footer{margin-top:40px;color:var(--muted);font-size:.8rem}
-  #ad{margin-top:32px;text-align:center}
-  #ad small{display:block;color:var(--muted);font-size:.7rem;margin-bottom:4px}
-  .note{color:var(--muted);font-size:.85rem;margin:12px 0 0}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--font)}
   a{color:var(--accent)}
-  /* ===== Comments ===== */
-  #comments{margin-top:40px}
-  #comments h2{font-size:1.3rem;margin:0 0 4px}
-  #comments .hint{color:var(--muted);font-size:.85rem;margin:0 0 14px}
-  #cform{display:grid;gap:8px}
-  #cform input,#cform textarea{width:100%;padding:12px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.9rem}
-  #cform textarea{min-height:80px;resize:vertical}
-  #cform .crow{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  #cform .count{color:var(--muted);font-size:.8rem}
-  #cerr{color:#c0392b;font-size:.85rem;min-height:1.2em;margin:6px 0 0}
-  #clist{margin-top:16px;display:grid;gap:10px}
-  .cm{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  button{font:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  [hidden]{display:none!important}
+
+  /* ---------- Shell: one screen on desktop, normal scroll on small screens ---------- */
+  .shell{display:flex;flex-direction:column;min-height:100dvh}
+  .cols{flex:1;display:grid;align-content:start;gap:20px;padding:clamp(16px,3vw,32px);width:100%;max-width:1180px;margin:0 auto;min-height:0}
+  .foot{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:center;padding:10px 16px 14px;font-size:.82rem;color:var(--muted)}
+  .foot a{color:var(--muted)}
+  .foot a:hover{color:var(--accent)}
+
+  @media (min-width:900px) and (min-height:620px){
+    .shell{height:100dvh;min-height:0}
+    .cols{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:stretch;align-content:stretch;overflow:hidden}
+    .left{overflow-y:auto;scrollbar-width:thin;padding:2px 4px 2px 2px;align-self:stretch;display:flex;flex-direction:column}
+    .left .inner{margin:auto 0}
+    .right{min-height:0}
+    .cpanel{height:100%}
+  }
+
+  /* ---------- Left: upload ---------- */
+  h1{font-weight:750;font-size:clamp(2.1rem,4vw,3.3rem);line-height:1.04;letter-spacing:-.035em;margin:4px 0 12px;font-variation-settings:"wght" 750}
+  h1 span{display:block;text-wrap:balance}
+  .sub{color:var(--muted);margin:0 0 22px;max-width:46ch}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .state{display:none}
+  .card[data-state="idle"] .s-idle,
+  .card[data-state="up"]   .s-up,
+  .card[data-state="done"] .s-done{display:block}
+
+  /* idle */
+  #drop{padding:clamp(28px,6vh,56px) 20px;text-align:center;cursor:pointer;border:2px dashed transparent;border-radius:14px;margin:6px;transition:background .15s,border-color .15s}
+  #drop:hover,#drop.over,#drop:focus-visible{background:var(--sunk);border-color:var(--accent);outline:none}
+  #drop svg{width:34px;height:34px;color:var(--accent);margin-bottom:8px}
+  #drop b{display:block;font-size:1.15rem;font-weight:650;letter-spacing:-.01em}
+  #drop small{color:var(--muted);font-size:.9rem}
+
+  /* uploading */
+  .s-up{padding:22px 22px 24px}
+  .s-up .fn{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .s-up .pct{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.9rem;margin-top:2px}
+  .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:14px}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .12s linear}
+
+  /* done: the link "ticket" with a burning fuse */
+  .s-done{padding:20px 22px 22px}
+  .tk-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+  .tk-file{min-width:0}
+  .tk-file b{display:block;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tk-file small{color:var(--muted)}
+  .clock{font-size:clamp(2rem,4.5vw,2.9rem);font-weight:750;line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .clock small{display:block;font-size:.78rem;font-weight:500;letter-spacing:0;color:var(--muted);text-align:right;margin-top:4px}
+  .fuse{height:6px;border-radius:3px;background:var(--line);margin:14px 0 16px;overflow:hidden}
+  .fuse i{display:block;height:100%;width:100%;background:var(--accent);border-radius:3px;transition:width 1s linear,background .4s}
+  .card.low .fuse i{background:var(--fuse)}
+  .card.low .clock{color:var(--fuse)}
+  .linkrow{display:flex;gap:8px}
+  .linkrow input{flex:1;min-width:0;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--ink);font:inherit;font-size:.9rem}
+  .btn{padding:11px 18px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-weight:650}
+  .btn:hover{filter:brightness(1.07)}
+  .btn:disabled{opacity:.55;cursor:default}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500}
+  .btn.ghost:hover{color:var(--ink);border-color:var(--muted);filter:none}
+  .again{margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.88rem;color:var(--muted)}
+  .again .btn{padding:7px 14px;font-size:.88rem}
+  .card.expired .linkrow{opacity:.45;pointer-events:none}
+
+  #err{color:var(--danger);font-size:.92rem;margin:12px 2px 0;min-height:0}
+  .note{color:var(--muted);font-size:.85rem;margin:12px 2px 0}
+
+  /* ad slot: collapses to nothing until an ad actually renders */
+  .ad{margin-top:20px}
+  .ad:not(.live){height:0;margin:0;overflow:hidden}
+  .ad small{display:block;color:var(--muted);font-size:.7rem;margin-bottom:4px;text-align:center}
+  .ad .adbox{display:flex;justify-content:center}
+
+  /* ---------- Right: comments panel (fixed height, scrolls inside) ---------- */
+  .cpanel{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:14px;min-height:0;overflow:hidden}
+  .chead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 10px;background:none;border:0;color:var(--ink);width:100%;text-align:left}
+  .chead h2{margin:0;font-size:1.1rem;font-weight:650;letter-spacing:-.01em}
+  .chead .n{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums;margin-left:6px}
+  .chead .chev{width:18px;height:18px;color:var(--muted);transition:transform .15s}
+  .cpanel[data-open="true"] .chev{transform:rotate(180deg)}
+  .cbody{display:none;flex-direction:column;min-height:0;flex:1}
+  .cpanel[data-open="true"] .cbody{display:flex}
+
+  .compose{padding:0 16px 12px;display:grid;gap:8px;border-bottom:1px solid var(--line)}
+  .compose textarea,.compose input,.rform textarea,.rform input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--ink);font:inherit;font-size:.92rem}
+  .compose textarea{height:62px;resize:none}
+  .compose textarea:focus,.compose input:focus,.rform textarea:focus,.rform input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+  .crow{display:flex;gap:8px;align-items:center}
+  .crow input{flex:1;min-width:0}
+  .crow .count{color:var(--muted);font-size:.78rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .crow .btn{padding:8px 16px;font-size:.9rem}
+  #cerr{color:var(--danger);font-size:.83rem;margin:0;min-height:0}
+  #cerr:empty{display:none}
+  .hint{color:var(--muted);font-size:.8rem;margin:0 16px 10px}
+
+  #clist{flex:1;min-height:0;overflow-y:auto;padding:4px 16px 14px;scrollbar-width:thin;overscroll-behavior:contain}
+  #cempty{color:var(--muted);font-size:.92rem;margin:14px 0}
+  .th{padding:12px 0;border-bottom:1px solid var(--line)}
+  .th:last-child{border-bottom:0}
   .cm .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-  .cm .who{font-weight:bold;font-size:.95rem;overflow-wrap:anywhere}
-  .cm time{color:var(--muted);font-size:.75rem;white-space:nowrap}
-  .cm p{margin:6px 0 10px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem}
-  .cm .acts{display:flex;gap:8px}
-  .cm .acts button{padding:5px 12px;background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:normal;font-size:.8rem}
-  .cm .acts button:hover{border-color:var(--accent)}
-  .cm .acts button.on{color:var(--accent);border-color:var(--accent);font-weight:bold}
-  #cempty{color:var(--muted);font-size:.9rem}
-  .replies{margin:8px 0 0 14px;padding-left:12px;border-left:2px solid var(--line);display:grid;gap:8px}
-  .rform{display:grid;gap:6px;margin-top:10px}
-  .rform input,.rform textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--ink);font:inherit;font-size:.85rem}
-  .rform textarea{min-height:64px;resize:vertical}
+  .cm .who{font-weight:650;font-size:.92rem;overflow-wrap:anywhere}
+  .cm time{color:var(--muted);font-size:.76rem;white-space:nowrap}
+  .cm p{margin:2px 0 6px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:.93rem;line-height:1.45}
+  .acts{display:flex;gap:2px;align-items:center;margin-left:-8px}
+  .acts button{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:0;border-radius:6px;background:none;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+  .acts button:hover{background:var(--sunk);color:var(--ink)}
+  .acts button.on{color:var(--accent);font-weight:650}
+  .acts button span{min-width:1.1em;text-align:left}
+  .acts svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .acts button.on svg{fill:currentColor}
+  .acts .grow{flex:1}
+  .replies{margin:6px 0 0 4px;padding-left:12px;border-left:2px solid var(--line);display:grid;gap:10px}
+  .replies[hidden]{display:none}
+  .replies .cm p{font-size:.9rem}
+  .rform{display:grid;gap:6px;margin-top:8px}
+  .rform textarea{height:56px;resize:none;font-size:.88rem}
   .rform .brow{display:flex;gap:8px;align-items:center}
-  .rform .brow button{padding:8px 14px;font-size:.85rem}
-  .rform .brow .cancel{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:normal}
-  .rform .rerr{color:#c0392b;font-size:.8rem}
+  .rform .brow .btn{padding:6px 14px;font-size:.85rem}
+  .rform .rerr{color:var(--danger);font-size:.8rem}
+
+  /* small screens: panel sits under the upload card, collapsed by default */
+  @media (max-width:899px), (max-height:619px){
+    .cpanel[data-open="true"] #clist{max-height:min(55vh,420px)}
+    .chead{cursor:pointer}
+  }
+  @media (min-width:900px) and (min-height:620px){
+    .chead{cursor:default;pointer-events:none}
+    .chead .chev{display:none}
+    .cbody{display:flex!important}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
-<main>
-  <h1>Send a file. It disappears in an hour.</h1>
-  <p class="sub">Upload up to 200MB and get a download link. The file is deleted automatically after 60 minutes.</p>
+<div class="shell">
+  <div class="cols">
 
-  <div id="drop" tabindex="0" role="button" aria-label="Choose a file to upload">
-    <b>Drop a file here or click to choose</b>
-    <span>Max 200MB</span>
+    <!-- ===== Left: upload ===== -->
+    <section class="left">
+     <div class="inner">
+      <h1><span>Send a file.</span><span>It disappears in an hour.</span></h1>
+      <p class="sub">Upload up to <span class="maxlbl">200 MB</span> and get a download link. The file is deleted automatically after 60 minutes.</p>
+
+      <div class="card" id="card" data-state="idle">
+        <div class="state s-idle">
+          <div id="drop" tabindex="0" role="button" aria-label="Choose a file to upload">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m6.5 9.5 5.5-5.5 5.5 5.5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+            <b>Drop a file here or click to choose</b>
+            <small>Max <span class="maxlbl">200 MB</span></small>
+          </div>
+        </div>
+
+        <div class="state s-up" aria-live="polite">
+          <div class="fn" id="upName"></div>
+          <div class="pct" id="upMsg">Preparing upload…</div>
+          <div class="bar"><i id="prog"></i></div>
+        </div>
+
+        <div class="state s-done">
+          <div class="tk-head">
+            <div class="tk-file"><b id="dnName"></b><small id="dnSize"></small></div>
+            <div class="clock"><span id="clock">60:00</span><small id="clockLbl">until it is deleted</small></div>
+          </div>
+          <div class="fuse" aria-hidden="true"><i id="fuse"></i></div>
+          <div class="linkrow">
+            <input id="link" readonly aria-label="Download link">
+            <button class="btn" id="copy" type="button">Copy link</button>
+          </div>
+          <div class="again"><span id="againTxt">Anyone with this link can download it.</span><button class="btn ghost" id="again" type="button">Send another</button></div>
+        </div>
+      </div>
+      <input type="file" id="file" hidden>
+      <p id="err" role="alert"></p>
+      <p class="note">By uploading, you agree to the <a href="terms.html">Terms</a>. Do not upload illegal or private content.</p>
+
+      <!-- Adsterra native banner. The slot stays collapsed until an ad really renders. -->
+      <div class="ad" id="ad">
+        <small>Advertisement</small>
+        <div class="adbox">
+          <script async="async" data-cfasync="false" src="https://pl31590022.profitableratecpmnetwork.com/e6ea2fd96bd57a26d623aa5d7189de4/invoke.js"></script>
+          <div id="container-e6ea2fd96bd57a26d623aa5d7189de4"></div>
+        </div>
+      </div>
+     </div>
+    </section>
+
+    <!-- ===== Right: comments ===== -->
+    <section class="right">
+      <div class="cpanel" id="cpanel" data-open="false">
+        <button class="chead" id="ctoggle" type="button" aria-expanded="false" aria-controls="cbody">
+          <h2>Public comments<span class="n" id="cn"></span></h2>
+          <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="cbody" id="cbody">
+          <p class="hint">Anyone can see these. Please don't post private information.</p>
+          <div class="compose">
+            <textarea id="ctext" maxlength="500" placeholder="Write a comment…" aria-label="Comment"></textarea>
+            <div class="crow">
+              <input id="cname" maxlength="40" placeholder="Name (optional)" autocomplete="off" aria-label="Name">
+              <span class="count" id="ccount">0/500</span>
+              <button class="btn" id="csend" type="button">Post</button>
+            </div>
+            <p id="cerr" role="alert"></p>
+          </div>
+          <div id="clist"><p id="cempty">Loading comments…</p></div>
+        </div>
+      </div>
+    </section>
+
   </div>
-  <input type="file" id="file" hidden>
-  <p class="note">By uploading, you agree to the <a href="terms.html">Terms</a>. Do not upload illegal or private content.</p>
-
-  <div id="status" aria-live="polite">
-    <div id="msg"></div>
-    <div class="bar"><i id="prog"></i></div>
-    <div class="row" id="result" style="display:none">
-      <input id="link" readonly>
-      <button id="copy">Copy link</button>
-    </div>
-  </div>
-
-  <!-- Upload Container Above -->
-
-  <!-- Native Adsterra Banner -->
-  <div style="width: 100%; display: flex; justify-content: center; margin-top: 25px;">
-    <script async="async" data-cfasync="false" src="https://pl31590022.profitableratecpmnetwork.com/e6ea2fd96bd57a26d623aa5d7189de4/invoke.js"></script>
-    <div id="container-e6ea2fd96bd57a26d623aa5d7189de4"></div>
-  </div>
-
-  <section id="comments">
-    <h2>Public comments</h2>
-    <p class="hint">Anyone can see these. Name is optional. Please don't post private information.</p>
-    <div id="cform">
-      <input id="cname" maxlength="40" placeholder="Name (optional)" autocomplete="off">
-      <textarea id="ctext" maxlength="500" placeholder="Write a comment..."></textarea>
-      <div class="crow"><span class="count" id="ccount">0 / 500</span><button id="csend" type="button">Post comment</button></div>
-    </div>
-    <p id="cerr" aria-live="polite"></p>
-    <div id="clist"><p id="cempty">Loading comments...</p></div>
-  </section>
-
-  <!-- Ad slot: hidden until you paste ad code into AD_HTML below -->
-  <div id="ad" hidden><small>Advertisement</small><div id="adbox"></div></div>
-
-  <footer>
-    <a href="terms.html">Terms</a> &middot;
-    <a href="privacy.html">Privacy Policy</a> &middot;
-    <a class="mail" href="#">Report abuse or request removal</a>
+  <footer class="foot">
+    <a href="terms.html">Terms</a>
+    <a href="privacy.html">Privacy Policy</a>
+    <a href="report.html">Report abuse or request removal</a>
   </footer>
-</main>
+</div>
 
 <script>
-// ===== SETTINGS: edit these =====
+// ===== SETTINGS =====
 const API = "https://share-file-online.alfred-irawa.workers.dev"; // your Worker URL, no trailing slash
-const CONTACT_EMAIL = "your-email@example.com";                  // abuse / takedown email
-const AD_HTML = "";  // paste your ad network's snippet here (leave empty for no ads)
-// ================================
-document.querySelectorAll(".mail").forEach((a) => (a.href = "mailto:" + CONTACT_EMAIL + "?subject=Abuse%20report"));
-if (AD_HTML) {
-  const box = document.getElementById("adbox");
-  box.innerHTML = AD_HTML;
-  // innerHTML does not run <script> tags, so re-create them
-  box.querySelectorAll("script").forEach((old) => {
-    const s = document.createElement("script");
-    [...old.attributes].forEach((a) => s.setAttribute(a.name, a.value));
-    s.textContent = old.textContent; old.replaceWith(s);
-  });
-  document.getElementById("ad").hidden = false;
-}
-const MAX = 200 * 1024 * 1024;
+// ====================
 
 const $ = (id) => document.getElementById(id);
-const drop = $("drop"), input = $("file");
+let MAX_MB = 200;
+const fmtMB = (n) => (n >= 1000 ? (n / 1000).toFixed(n % 1000 ? 1 : 0) + " GB" : n + " MB");
+const fmtSize = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB");
+const paintMax = () => document.querySelectorAll(".maxlbl").forEach((e) => (e.textContent = fmtMB(MAX_MB)));
+fetch(API + "/config").then((r) => r.json()).then((d) => { if (d.maxMB > 0) { MAX_MB = d.maxMB; paintMax(); } }).catch(() => {});
+
+/* ---------- Upload ---------- */
+const card = $("card"), drop = $("drop"), input = $("file");
+const setState = (s) => (card.dataset.state = s);
+const showErr = (m) => { $("err").textContent = m || ""; };
 
 drop.onclick = () => input.click();
-drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") input.click(); };
+drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); input.click(); } };
 drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("over"); };
 drop.ondragleave = () => drop.classList.remove("over");
 drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer.files[0]) start(e.dataTransfer.files[0]); };
 input.onchange = () => input.files[0] && start(input.files[0]);
 
-function say(text, isErr) { $("status").style.display = "block"; $("msg").textContent = text; $("msg").className = isErr ? "err" : ""; }
-
 async function start(file) {
-  $("result").style.display = "none"; $("prog").style.width = "0";
-  if (API.includes("YOUR-SUBDOMAIN")) return say("Setup not finished: put your real Worker URL in the API line of index.html.", true);
-  if (file.size > MAX) return say("That file is over 200MB. Choose a smaller one.", true);
+  showErr("");
+  if (file.size > MAX_MB * 1048576) { input.value = ""; return showErr(`That file is over ${fmtMB(MAX_MB)}. Choose a smaller one.`); }
+  $("upName").textContent = file.name; $("prog").style.width = "0"; $("upMsg").textContent = "Preparing upload…";
+  setState("up");
+  const fail = (m) => { setState("idle"); showErr(m); input.value = ""; };
   try {
-    say("Preparing upload...");
     const r = await fetch(API + "/init", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: file.name, size: file.size }) });
     const init = await r.json();
-    if (!r.ok) return say(init.error || "Could not start upload.", true);
+    if (!r.ok) return fail(init.error || "Could not start upload.");
 
     await new Promise((resolve, reject) => {
       const x = new XMLHttpRequest();
       x.open("PUT", init.uploadUrl);
-      x.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); $("prog").style.width = p + "%"; say("Uploading " + p + "%"); } };
+      x.upload.onprogress = (e) => { if (e.lengthComputable) { const p = Math.round(e.loaded / e.total * 100); $("prog").style.width = p + "%"; $("upMsg").textContent = "Uploading " + p + "%"; } };
       x.onload = () => (x.status < 300 ? resolve() : reject(new Error("Upload failed (" + x.status + ")")));
       x.onerror = () => reject(new Error("Network error during upload."));
       x.send(file.slice(0, file.size, "")); // no Content-Type header, so the simple CORS preset is enough
     });
 
-    say("Finishing...");
+    $("upMsg").textContent = "Finishing…"; $("prog").style.width = "100%";
     let d, done;
     for (let i = 0; i < 3; i++) {
       d = await fetch(API + "/done", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: init.key }) });
@@ -170,29 +295,80 @@ async function start(file) {
       if (d.ok || d.status === 413) break;
       await new Promise((r) => setTimeout(r, 1000));
     }
-    if (!d.ok) return say(done.error || "Upload could not be verified.", true);
-
-    say("Done. This link works for 60 minutes.");
-    $("link").value = done.link; $("result").style.display = "flex";
-  } catch (e) { say(e.message, true); }
+    if (!d.ok) return fail(done.error || "Upload could not be verified.");
+    showTicket({ link: done.link, name: file.name, size: file.size, end: Date.now() + done.expiresInMinutes * 60000, total: done.expiresInMinutes * 60000 });
+  } catch (e) { fail(e.message); }
 }
+
+/* ---------- Link ticket with live countdown ---------- */
+const STORE = "ticket_v1";
+let timer;
+function showTicket(t) {
+  try { localStorage.setItem(STORE, JSON.stringify(t)); } catch {}
+  $("dnName").textContent = t.name; $("dnSize").textContent = fmtSize(t.size);
+  $("link").value = t.link; card.classList.remove("expired", "low");
+  $("clockLbl").textContent = "until it is deleted"; $("againTxt").textContent = "Anyone with this link can download it.";
+  setState("done");
+  clearInterval(timer);
+  const tick = () => {
+    const left = Math.max(0, t.end - Date.now()), s = Math.ceil(left / 1000);
+    $("clock").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    $("fuse").style.width = (left / t.total * 100) + "%";
+    card.classList.toggle("low", left > 0 && left < 10 * 60000);
+    if (!left) {
+      clearInterval(timer); card.classList.remove("low"); card.classList.add("expired");
+      $("clockLbl").textContent = "link expired"; $("againTxt").textContent = "This file has been deleted.";
+      try { localStorage.removeItem(STORE); } catch {}
+    }
+  };
+  tick(); timer = setInterval(tick, 1000);
+}
+try { const t = JSON.parse(localStorage.getItem(STORE)); if (t && t.end > Date.now()) showTicket(t); else localStorage.removeItem(STORE); } catch {}
 
 $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText($("link").value); } catch { $("link").select(); document.execCommand("copy"); }
   $("copy").textContent = "Copied";
   setTimeout(() => ($("copy").textContent = "Copy link"), 1500);
 };
-</script>
-<script>
-// ===== Public comments (with replies) =====
+$("again").onclick = () => {
+  clearInterval(timer); try { localStorage.removeItem(STORE); } catch {}
+  input.value = ""; showErr(""); setState("idle"); drop.focus();
+};
+
+/* ---------- Ad slot: show only once something has rendered ---------- */
 (() => {
-  const g = (id) => document.getElementById(id);
-  const list = g("clist"), errEl = g("cerr"), ta = g("ctext");
+  const box = $("container-e6ea2fd96bd57a26d623aa5d7189de4"), slot = $("ad");
+  if (!box) return;
+  const check = () => { if (box.children.length || box.offsetHeight > 20) slot.classList.add("live"); };
+  new MutationObserver(check).observe(box, { childList: true, subtree: true });
+  setTimeout(check, 3000); setTimeout(check, 8000);
+})();
+</script>
+
+<script>
+/* ---------- Comments ---------- */
+(() => {
+  const list = $("clist"), errEl = $("cerr"), ta = $("ctext");
+  const panel = $("cpanel"), toggle = $("ctoggle");
   const KEY = "reacts_v1";
-  let mine = {};
+  let mine = {}, total = 0;
   try { mine = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(mine)); } catch {} };
   const fail = (m) => { errEl.textContent = m || ""; };
+  const setTotal = (n) => { total = n; $("cn").textContent = n ? n : ""; };
+
+  /* panel is always open on desktop; collapsible on small screens */
+  const wide = matchMedia("(min-width:900px) and (min-height:620px)");
+  const setOpen = (o) => { panel.dataset.open = String(o); toggle.setAttribute("aria-expanded", String(o)); };
+  setOpen(wide.matches);
+  wide.addEventListener("change", (e) => setOpen(e.matches));
+  toggle.onclick = () => { if (!wide.matches) setOpen(panel.dataset.open !== "true"); };
+
+  const ICON = {
+    heart: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg>',
+    reply: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v3"/></svg>',
+  };
 
   function ago(t) {
     const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
@@ -210,13 +386,19 @@ $("copy").onclick = async () => {
     return d.comment;
   }
 
-  function reactBtn(c, kind, label, onLabel) {
-    const b = document.createElement("button");
-    b.type = "button";
+  function actBtn(icon, text, title) {
+    const b = document.createElement("button"); b.type = "button"; b.title = title; b.setAttribute("aria-label", title);
+    b.innerHTML = icon; const s = document.createElement("span"); s.textContent = text; b.append(s);
+    return b;
+  }
+
+  function reactBtn(c, kind) {
+    const b = actBtn(ICON[kind === "like" ? "heart" : "star"], "", kind === "like" ? "Like" : "Star");
+    const label = b.querySelector("span");
     const refresh = () => {
       const on = !!(mine[c.id] && mine[c.id][kind]);
-      b.className = on ? "on" : "";
-      b.textContent = (on ? onLabel : label) + " " + (kind === "like" ? c.likes : c.stars);
+      b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+      const n = kind === "like" ? c.likes : c.stars; label.textContent = n || "";
     };
     refresh();
     b.onclick = async () => {
@@ -241,12 +423,12 @@ $("copy").onclick = async () => {
     const old = el.querySelector(".rform");
     if (old) { old.remove(); return; }
     const f = document.createElement("div"); f.className = "rform";
-    const n = document.createElement("input"); n.maxLength = 40; n.placeholder = "Name (optional)"; n.value = g("cname").value;
-    const t = document.createElement("textarea"); t.maxLength = 500; t.placeholder = "Write a reply...";
+    const n = document.createElement("input"); n.maxLength = 40; n.placeholder = "Name (optional)"; n.value = $("cname").value; n.setAttribute("aria-label", "Name");
+    const t = document.createElement("textarea"); t.maxLength = 500; t.placeholder = "Write a reply…"; t.setAttribute("aria-label", "Reply");
     if (c.parent_id) t.value = "@" + (c.name || "Anonymous") + " ";
     const row = document.createElement("div"); row.className = "brow";
-    const send = document.createElement("button"); send.type = "button"; send.textContent = "Post reply";
-    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "cancel"; cancel.textContent = "Cancel";
+    const send = document.createElement("button"); send.type = "button"; send.className = "btn"; send.textContent = "Reply";
+    const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "btn ghost"; cancel.textContent = "Cancel";
     const err = document.createElement("span"); err.className = "rerr";
     row.append(send, cancel, err);
     f.append(n, t, row);
@@ -256,39 +438,49 @@ $("copy").onclick = async () => {
       send.disabled = true; err.textContent = "";
       try {
         const r = await post({ name: n.value, text: t.value, parent_id: ctx.topId });
-        ctx.replies.append(commentEl(r, ctx));
-        f.remove();
+        ctx.replies.append(commentEl(r, ctx)); ctx.addReply();
+        f.remove(); setTotal(total + 1);
       } catch (e) { err.textContent = e.message; send.disabled = false; }
     };
     el.append(f); t.focus();
   }
 
-  function commentEl(c, ctx) {
+  function commentEl(c, ctx, isTop) {
     const el = document.createElement("div"); el.className = "cm";
     const top = document.createElement("div"); top.className = "top";
     const who = document.createElement("span"); who.className = "who"; who.textContent = c.name || "Anonymous";
-    const tm = document.createElement("time"); tm.textContent = ago(c.created_at);
+    const tm = document.createElement("time"); tm.textContent = ago(c.created_at); tm.title = new Date(c.created_at).toLocaleString();
     top.append(who, tm);
     const p = document.createElement("p"); p.textContent = c.text;
     const acts = document.createElement("div"); acts.className = "acts";
-    const rb = document.createElement("button"); rb.type = "button"; rb.textContent = "\u21A9 Reply";
-    rb.onclick = () => openReplyForm(el, c, ctx);
-    acts.append(reactBtn(c, "like", "\u2661 Like", "\u2665 Unlike"), reactBtn(c, "star", "\u2606 Star", "\u2605 Starred"), rb);
+    const rb = actBtn(ICON.reply, "Reply", "Reply"); rb.onclick = () => openReplyForm(el, c, ctx);
+    acts.append(reactBtn(c, "like"), reactBtn(c, "star"), rb);
+    if (isTop) { const g = document.createElement("span"); g.className = "grow"; acts.append(g, ctx.toggleBtn); }
     el.append(top, p, acts);
     return el;
   }
 
   function thread(c, replies) {
-    const wrap = document.createElement("div");
-    const repliesEl = document.createElement("div"); repliesEl.className = "replies";
-    const ctx = { topId: c.id, replies: repliesEl };
-    wrap.append(commentEl(c, ctx), repliesEl);
+    const wrap = document.createElement("div"); wrap.className = "th";
+    const repliesEl = document.createElement("div"); repliesEl.className = "replies"; repliesEl.hidden = true;
+    const tb = document.createElement("button"); tb.type = "button"; tb.setAttribute("aria-expanded", "false");
+    const ctx = { topId: c.id, replies: repliesEl, count: replies.length, toggleBtn: tb };
+    const paint = () => {
+      tb.hidden = ctx.count === 0;
+      const open = !repliesEl.hidden;
+      tb.textContent = (open ? "Hide " : "Show ") + ctx.count + (ctx.count === 1 ? " reply" : " replies");
+      tb.setAttribute("aria-expanded", String(open));
+    };
+    tb.onclick = () => { repliesEl.hidden = !repliesEl.hidden; paint(); };
+    ctx.addReply = () => { ctx.count++; repliesEl.hidden = false; paint(); };
+    wrap.append(commentEl(c, ctx, true), repliesEl);
     replies.forEach((r) => repliesEl.append(commentEl(r, ctx)));
+    paint();
     return wrap;
   }
 
   function show(all) {
-    list.textContent = "";
+    list.textContent = ""; setTotal(all.length);
     const tops = all.filter((c) => !c.parent_id).sort((a, b) => b.created_at - a.created_at);
     if (!tops.length) { const e = document.createElement("p"); e.id = "cempty"; e.textContent = "No comments yet. Be the first."; list.append(e); return; }
     tops.forEach((c) => {
@@ -306,17 +498,17 @@ $("copy").onclick = async () => {
     } catch { list.innerHTML = '<p id="cempty">Comments could not be loaded right now.</p>'; }
   }
 
-  ta.oninput = () => { g("ccount").textContent = ta.value.length + " / 500"; };
+  ta.oninput = () => { $("ccount").textContent = ta.value.length + "/500"; };
 
-  g("csend").onclick = async () => {
+  $("csend").onclick = async () => {
     const text = ta.value.trim();
     if (!text) { fail("Please write a comment."); ta.focus(); return; }
-    const b = g("csend"); b.disabled = true; fail("");
+    const b = $("csend"); b.disabled = true; fail("");
     try {
-      const c = await post({ name: g("cname").value, text });
-      ta.value = ""; g("ccount").textContent = "0 / 500";
-      const empty = g("cempty"); if (empty) list.textContent = "";
-      list.prepend(thread(c, []));
+      const c = await post({ name: $("cname").value, text });
+      ta.value = ""; $("ccount").textContent = "0/500";
+      const empty = $("cempty"); if (empty) list.textContent = "";
+      list.prepend(thread(c, [])); list.scrollTop = 0; setTotal(total + 1);
     } catch (e) { fail(e.message); }
     b.disabled = false;
   };

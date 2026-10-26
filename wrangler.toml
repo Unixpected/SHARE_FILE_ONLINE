@@ -3,20 +3,20 @@ main = "worker.js"
 compatibility_date = "2026-09-01"
 
 [triggers]
-crons = ["*/10 * * * *"]   # cleanup every 10 minutes
+crons = ["*/10 * * * *"]   # cleanup every 10 minutes (files + old log rows)
 
 [vars]
 B2_BUCKET   = "fileshare-tmp-yourname-482"
 B2_ENDPOINT = "s3.us-west-004.backblazeb2.com"
 B2_REGION   = "us-west-004"
-# Change this to your GitHub Pages URL (no trailing slash), later your domain
-# Comma-separate several origins. When you buy a domain, add it here, e.g.
-# "https://YOUR-GITHUB-USERNAME.github.io,https://yourdomain.com"
-ALLOWED_ORIGIN = "https://unixpected.github.io,http://file_share.unixpected05.online,https://file_share.unixpected05.online"
+# Comma-separate several origins. The hyphen versions are there so you can move
+# off the underscore domain (see notes) without touching this file again.
+ALLOWED_ORIGIN = "https://unixpected.github.io,http://file_share.unixpected05.online,https://file_share.unixpected05.online,https://file-share.unixpected05.online,http://file-share.unixpected05.online"
 
 # Secrets (NOT stored here). Set with:
 #   npx wrangler secret put B2_KEY_ID
 #   npx wrangler secret put B2_APP_KEY
+#   npx wrangler secret put ADMIN_PASSWORD     <- NEW: password for /admin.html
 
 # Rate limit: 10 upload starts per minute per IP (period must be 10 or 60)
 [[unsafe.bindings]]
@@ -32,9 +32,17 @@ type = "ratelimit"
 namespace_id = "1002"
 simple = { limit = 30, period = 60 }
 
-# Comments database (Cloudflare D1). Create it, then paste the database_id here:
+# NEW: admin login attempts: 5 per minute per IP
+[[unsafe.bindings]]
+name = "RATE_LIMITER_ADMIN"
+type = "ratelimit"
+namespace_id = "1003"
+simple = { limit = 5, period = 60 }
+
+# Comments / settings / logs database (Cloudflare D1).
 #   npx wrangler d1 create share-comments
 #   npx wrangler d1 execute share-comments --remote --file=schema.sql
+# KEEP your real database_id if you already have one.
 [[d1_databases]]
 binding = "DB"
 database_name = "share-comments"

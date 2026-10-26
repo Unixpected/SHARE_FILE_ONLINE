@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin</title>
+<style>
+  @font-face{font-family:"Bricolage Grotesque";src:url(fonts/bricolage.woff2) format("woff2");font-weight:200 800;font-display:swap}
+  :root{
+    --bg:#eef0f6; --panel:#ffffff; --sunk:#f4f5fa; --ink:#12142a; --muted:#5a5f7d; --line:#d9dcea;
+    --accent:#3446e8; --accent-ink:#fff; --danger:#c0392b; --ok:#1f8a5b; --warn:#b7791f;
+    --font:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0e1020; --panel:#161931; --sunk:#10132a; --ink:#e8eaf8; --muted:#9298ba; --line:#2a2e52;
+      --accent:#8c9bff; --accent-ink:#0e1020; --danger:#ff7b6b; --ok:#5fd3a0; --warn:#f0b95a}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--font)}
+  a{color:var(--accent)}
+  button,input,select{font:inherit}
+  button{cursor:pointer}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  [hidden]{display:none!important}
+  h1{font-size:1.6rem;font-weight:750;letter-spacing:-.03em;margin:0}
+  .wrap{max-width:1180px;margin:0 auto;padding:clamp(14px,3vw,28px)}
+
+  .btn{padding:9px 16px;border:0;border-radius:9px;background:var(--accent);color:var(--accent-ink);font-weight:650}
+  .btn:hover{filter:brightness(1.07)} .btn:disabled{opacity:.55;cursor:default}
+  .btn.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500}
+  .btn.ghost:hover{color:var(--ink);border-color:var(--muted);filter:none}
+  .btn.danger{background:var(--danger);color:#fff}
+  .btn.sm{padding:5px 11px;font-size:.82rem}
+  input,select{padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--sunk);color:var(--ink)}
+  label{font-weight:600;font-size:.9rem}
+  .err{color:var(--danger);font-size:.9rem;min-height:1.3em;margin:8px 0 0}
+  .ok{color:var(--ok)}
+  .muted{color:var(--muted)}
+
+  /* login */
+  #login{min-height:100dvh;display:grid;place-items:center;padding:20px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;width:100%;max-width:360px}
+  .box h1{margin-bottom:4px} .box p{margin:0 0 18px;color:var(--muted);font-size:.92rem}
+  .box input{width:100%;margin-bottom:12px}
+  .box .btn{width:100%}
+
+  /* app */
+  .bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .bar .r{display:flex;gap:8px;align-items:center}
+  .sum{margin:6px 0 18px;color:var(--muted)}
+  .sum b{color:var(--ink);font-weight:650;font-variant-numeric:tabular-nums}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;color:var(--muted);font-weight:600;margin-bottom:-1px}
+  .tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  .filters input{flex:1;min-width:180px}
+  .tw{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:.88rem}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;color:var(--muted);font-size:.8rem;white-space:nowrap;position:sticky;top:0;background:var(--panel)}
+  tr:last-child td{border-bottom:0}
+  td.t{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+  td.ip{font-family:var(--mono);font-size:.82rem;white-space:nowrap}
+  td.ip button{background:none;border:0;color:var(--accent);padding:0;font:inherit;text-decoration:underline dotted;cursor:pointer}
+  td.d{overflow-wrap:anywhere;min-width:220px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.78rem;font-weight:600;background:var(--sunk);border:1px solid var(--line);white-space:nowrap}
+  .tag.up{color:var(--ok)} .tag.bad{color:var(--danger)} .tag.adm{color:var(--warn)}
+  .more{display:flex;justify-content:center;padding:12px}
+  .empty{padding:28px;text-align:center;color:var(--muted)}
+
+  .cm{padding:14px 16px;border-bottom:1px solid var(--line);display:grid;gap:4px}
+  .cm:last-child{border-bottom:0}
+  .cm .h{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .cm .h .sp{flex:1}
+  .cm .h b{font-weight:650}
+  .cm .h .ipt{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+  .cm .h time{color:var(--muted);font-size:.8rem}
+  .cm p{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+  .set{padding:20px;display:grid;gap:22px;max-width:560px}
+  .set .fld{display:grid;gap:6px}
+  .set .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .set input[type=number]{width:130px}
+  .set small{color:var(--muted)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chips button{padding:4px 11px;border:1px solid var(--line);background:none;border-radius:99px;color:var(--muted);font-size:.82rem}
+  .chips button:hover{color:var(--ink);border-color:var(--muted)}
+</style>
+</head>
+<body>
+
+<section id="login">
+  <form class="box" id="lform">
+    <h1>Admin</h1>
+    <p>Sign in to manage comments, limits and the activity log.</p>
+    <input id="pw" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password" required>
+    <button class="btn" id="lbtn" type="submit">Sign in</button>
+    <p class="err" id="lerr" role="alert"></p>
+  </form>
+</section>
+
+<div class="wrap" id="app" hidden>
+  <div class="bar">
+    <h1>Admin</h1>
+    <div class="r"><a href="index.html">View site</a><button class="btn ghost sm" id="out" type="button">Sign out</button></div>
+  </div>
+  <p class="sum" id="sum"></p>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-log" aria-selected="true" aria-controls="p-log" data-t="log">Activity</button>
+    <button role="tab" id="tab-com" aria-selected="false" aria-controls="p-com" data-t="com">Comments</button>
+    <button role="tab" id="tab-set" aria-selected="false" aria-controls="p-set" data-t="set">Settings</button>
+  </div>
+
+  <!-- Activity -->
+  <section id="p-log" role="tabpanel" aria-labelledby="tab-log">
+    <div class="filters">
+      <select id="fev" aria-label="Event type">
+        <option value="">All events</option>
+        <option value="upload_done">Uploads (finished)</option>
+        <option value="upload_start">Uploads (started)</option>
+        <option value="upload_rejected">Uploads (rejected)</option>
+        <option value="download">Downloads</option>
+        <option value="comment">Comments</option>
+        <option value="reply">Replies</option>
+        <option value="rate_limited">Rate limited</option>
+        <option value="comment_deleted">Comments deleted</option>
+        <option value="file_deleted">Files deleted</option>
+        <option value="settings_changed">Settings changes</option>
+        <option value="admin_login">Admin sign-ins</option>
+        <option value="admin_login_failed">Failed sign-ins</option>
+      </select>
+      <input id="fq" type="search" placeholder="Search IP address, file name or text" aria-label="Search">
+      <button class="btn ghost" id="fgo" type="button">Refresh</button>
+    </div>
+    <div class="panel">
+      <div class="tw"><table>
+        <thead><tr><th>When</th><th>Event</th><th>IP address</th><th>Location</th><th>Device</th><th>Details</th></tr></thead>
+        <tbody id="lbody"></tbody>
+      </table></div>
+      <div class="empty" id="lempty" hidden>No activity matches.</div>
+      <div class="more" id="lmore" hidden><button class="btn ghost" id="lmorebtn" type="button">Load more</button></div>
+    </div>
+  </section>
+
+  <!-- Comments -->
+  <section id="p-com" role="tabpanel" aria-labelledby="tab-com" hidden>
+    <div class="panel">
+      <div id="cbody"></div>
+      <div class="empty" id="cempty" hidden>No comments.</div>
+      <div class="more" id="cmore" hidden><button class="btn ghost" id="cmorebtn" type="button">Load more</button></div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="p-set" role="tabpanel" aria-labelledby="tab-set" hidden>
+    <div class="panel set">
+      <div class="fld">
+        <label for="smax">Maximum file size (MB)</label>
+        <div class="row"><input id="smax" type="number" min="1" max="5000" step="1"><span class="muted" id="smaxh"></span></div>
+        <div class="chips" id="chips"></div>
+        <small>Applies to new uploads straight away. Bigger limits use more storage and bandwidth on Backblaze. The highest possible value is 5000 MB.</small>
+      </div>
+      <div class="fld">
+        <label for="sdays">Keep the activity log for (days)</label>
+        <div class="row"><input id="sdays" type="number" min="1" max="365" step="1"></div>
+        <small>Older log entries are deleted automatically. This is also stated in your Privacy Policy.</small>
+      </div>
+      <div class="row"><button class="btn" id="ssave" type="button">Save settings</button><span id="smsg" role="status"></span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const API = "https://share-file-online.alfred-irawa.workers.dev"; // keep in sync with index.html
+const $ = (id) => document.getElementById(id);
+const TK = "admin_token";
+let token = sessionStorage.getItem(TK) || "";
+
+/* ---------- API helper ---------- */
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, {
+    method: opts.body ? "POST" : "GET",
+    headers: Object.assign({ Authorization: "Bearer " + token }, opts.body ? { "Content-Type": "application/json" } : {}),
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { signOut(); throw new Error(d.error || "Please sign in again."); }
+  if (!r.ok) throw new Error(d.error || "Request failed (" + r.status + ")");
+  return d;
+}
+
+/* ---------- Sign in / out ---------- */
+$("lform").onsubmit = async (e) => {
+  e.preventDefault();
+  const b = $("lbtn"); b.disabled = true; $("lerr").textContent = "";
+  try {
+    const r = await fetch(API + "/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: $("pw").value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || "Could not sign in.");
+    token = d.token; sessionStorage.setItem(TK, token); $("pw").value = "";
+    enter();
+  } catch (err) { $("lerr").textContent = err.message; }
+  b.disabled = false;
+};
+function signOut() {
+  token = ""; sessionStorage.removeItem(TK);
+  $("app").hidden = true; $("login").hidden = false;
+}
+$("out").onclick = signOut;
+
+/* ---------- Helpers ---------- */
+const abs = (t) => new Date(t).toLocaleString();
+function ago(t) {
+  const s = Math.max(1, Math.floor((Date.now() - t) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + " min ago";
+  if (s < 86400) return Math.floor(s / 3600) + " h ago";
+  return Math.floor(s / 86400) + " d ago";
+}
+const fmtSize = (b) => (b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB");
+function device(ua = "") {
+  const br = /Edg\//.test(ua) ? "Edge" : /OPR\/|Opera/.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : /curl|python|node|axios|bot/i.test(ua) ? "Script/bot" : "Unknown";
+  const os = /Windows/.test(ua) ? "Windows" : /Android/.test(ua) ? "Android" : /iPhone|iPad|iOS/.test(ua) ? "iOS" : /Mac OS X/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
+  return os ? br + " on " + os : br;
+}
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const LABEL = {
+  upload_start: "Upload started", upload_done: "Upload finished", upload_rejected: "Upload rejected", download: "Download",
+  comment: "Comment", reply: "Reply", rate_limited: "Rate limited", comment_deleted: "Comment deleted", file_deleted: "File deleted",
+  settings_changed: "Settings changed", admin_login: "Admin sign-in", admin_login_failed: "Failed sign-in",
+};
+const tagClass = (e) => (e === "upload_done" ? "up" : /failed|rejected|rate_limited/.test(e) ? "bad" : /admin|deleted|settings/.test(e) ? "adm" : "");
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll(".tabs button").forEach((b) => {
+  b.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach((x) => { const on = x === b; x.setAttribute("aria-selected", String(on)); $("p-" + x.dataset.t).hidden = !on; });
+    if (b.dataset.t === "com" && !comLoaded) loadComments(true);
+  };
+});
+
+/* ---------- Activity log ---------- */
+let logCursor = 0;
+function detailText(l) {
+  let d = {}; try { d = JSON.parse(l.detail || "{}"); } catch {}
+  switch (l.event) {
+    case "upload_start": case "upload_done": return { text: (d.name || "") + (d.size ? "  (" + fmtSize(d.size) + ")" : ""), key: l.event === "upload_done" ? d.key : null };
+    case "upload_rejected": return { text: (d.key || "") + " " + (d.size ? "(" + fmtSize(d.size) + ") " : "") + (d.reason || "") };
+    case "download": return { text: d.name || d.key || "" };
+    case "comment": case "reply": return { text: (d.name ? d.name + ": " : "") + (d.preview || "") };
+    case "comment_deleted": return { text: "by " + (d.author || "?") + (d.author_ip ? " (" + d.author_ip + ")" : "") + ": " + (d.preview || "") + (d.replies_deleted ? "  [+" + d.replies_deleted + " replies]" : "") };
+    case "file_deleted": return { text: d.key || "" };
+    case "settings_changed": return { text: "max file size " + d.maxMB + " MB, log kept " + d.logDays + " days" };
+    case "rate_limited": return { text: d.route || "" };
+    default: return { text: "" };
+  }
+}
+function logRow(l) {
+  const tr = el("tr");
+  const t = el("td", "t", ago(l.ts)); t.title = abs(l.ts);
+  const ev = el("td"); ev.append(el("span", "tag " + tagClass(l.event), LABEL[l.event] || l.event));
+  const ip = el("td", "ip"); const ib = el("button", "", l.ip || "unknown"); ib.type = "button"; ib.title = "Show everything from this IP";
+  ib.onclick = () => { $("fq").value = l.ip; $("fev").value = ""; loadLogs(true); }; ip.append(ib);
+  const loc = el("td", "", [l.city, l.country].filter(Boolean).join(", ") || "—");
+  const dev = el("td", "", device(l.ua)); dev.title = l.ua || "";
+  const dt = detailText(l); const d = el("td", "d", dt.text);
+  if (dt.key) {
+    const b = el("button", "btn ghost sm", "Delete file"); b.type = "button"; b.style.marginLeft = "8px";
+    let armed = false;
+    b.onclick = async () => {
+      if (!armed) { armed = true; b.textContent = "Confirm delete"; b.classList.add("danger"); setTimeout(() => { armed = false; b.textContent = "Delete file"; b.classList.remove("danger"); }, 4000); return; }
+      b.disabled = true;
+      try { await api("/admin/files/delete", { body: { key: dt.key } }); b.textContent = "Deleted"; }
+      catch (e) { b.textContent = e.message; b.disabled = false; }
+    };
+    d.append(b);
+  }
+  tr.append(t, ev, ip, loc, dev, d);
+  return tr;
+}
+async function loadLogs(reset) {
+  if (reset) { logCursor = 0; $("lbody").textContent = ""; }
+  const p = new URLSearchParams({ limit: "50" });
+  if ($("fev").value) p.set("event", $("fev").value);
+  if ($("fq").value.trim()) p.set("q", $("fq").value.trim());
+  if (logCursor) p.set("before", logCursor);
+  try {
+    const d = await api("/admin/logs?" + p);
+    d.logs.forEach((l) => $("lbody").append(logRow(l)));
+    if (d.logs.length) logCursor = d.logs[d.logs.length - 1].id;
+    $("lempty").hidden = $("lbody").children.length > 0;
+    $("lmore").hidden = !d.more;
+  } catch (e) { $("lempty").hidden = false; $("lempty").textContent = e.message; }
+}
+$("fgo").onclick = () => { $("lempty").textContent = "No activity matches."; loadLogs(true); refreshSummary(); };
+$("fev").onchange = () => loadLogs(true);
+$("fq").onkeydown = (e) => { if (e.key === "Enter") loadLogs(true); };
+$("lmorebtn").onclick = () => loadLogs(false);
+
+/* ---------- Comments ---------- */
+let comCursor = 0, comLoaded = false;
+function comEl(c) {
+  const box = el("div", "cm");
+  const h = el("div", "h");
+  h.append(el("b", "", c.name || "Anonymous"), el("span", "ipt", c.ip || "no IP recorded"));
+  const tm = el("time", "", ago(c.created_at)); tm.title = abs(c.created_at); h.append(tm);
+  if (c.parent_id) h.append(el("span", "tag", "reply"));
+  if (c.likes || c.stars) h.append(el("span", "ipt", "♥ " + c.likes + "  ★ " + c.stars));
+  h.append(el("span", "sp"));
+  const del = el("button", "btn ghost sm", "Delete"); del.type = "button";
+  let armed = false, t;
+  del.onclick = async () => {
+    if (!armed) {
+      armed = true; del.textContent = c.parent_id ? "Confirm delete" : "Confirm (removes replies too)"; del.classList.add("danger");
+      t = setTimeout(() => { armed = false; del.textContent = "Delete"; del.classList.remove("danger"); }, 4000); return;
+    }
+    clearTimeout(t); del.disabled = true;
+    try { await api("/admin/comments/delete", { body: { id: c.id } }); box.remove(); refreshSummary(); if (!$("cbody").children.length) $("cempty").hidden = false; }
+    catch (e) { del.textContent = e.message; del.disabled = false; }
+  };
+  h.append(del);
+  box.append(h, el("p", "", c.text));
+  return box;
+}
+async function loadComments(reset) {
+  if (reset) { comCursor = 0; $("cbody").textContent = ""; }
+  const p = new URLSearchParams({ limit: "50" });
+  if (comCursor) p.set("before", comCursor);
+  try {
+    const d = await api("/admin/comments?" + p);
+    d.comments.forEach((c) => $("cbody").append(comEl(c)));
+    if (d.comments.length) comCursor = d.comments[d.comments.length - 1].created_at;
+    comLoaded = true;
+    $("cempty").hidden = $("cbody").children.length > 0;
+    $("cmore").hidden = !d.more;
+  } catch (e) { $("cempty").hidden = false; $("cempty").textContent = e.message; }
+}
+$("cmorebtn").onclick = () => loadComments(false);
+
+/* ---------- Settings ---------- */
+const PRESETS = [50, 100, 200, 500, 1000, 2000];
+PRESETS.forEach((n) => { const b = el("button", "", n >= 1000 ? n / 1000 + " GB" : n + " MB"); b.type = "button"; b.onclick = () => ($("smax").value = n); $("chips").append(b); });
+$("ssave").onclick = async () => {
+  const b = $("ssave"), m = $("smsg"); b.disabled = true; m.className = ""; m.textContent = "";
+  try {
+    const d = await api("/admin/settings", { body: { maxMB: Number($("smax").value), logDays: Number($("sdays").value) } });
+    $("smax").value = d.settings.maxMB; $("sdays").value = d.settings.logDays;
+    m.className = "ok"; m.textContent = "Saved. New uploads now allow up to " + d.settings.maxMB + " MB.";
+    refreshSummary();
+  } catch (e) { m.className = "err"; m.textContent = e.message; }
+  b.disabled = false;
+};
+
+/* ---------- Summary + start ---------- */
+let settingsFilled = false;
+async function refreshSummary() {
+  try {
+    const d = await api("/admin/overview");
+    const sum = $("sum"); sum.textContent = "";
+    const b = (n) => el("b", "", String(n));
+    sum.append(b(d.stats.uploads24h), " uploads and ", b(d.stats.visitors24h), " visitors in the last 24 hours. ",
+      b(d.stats.comments), " comments in total. Upload limit is ", b(d.settings.maxMB + " MB"), ".");
+    if (!settingsFilled) { $("smax").value = d.settings.maxMB; $("sdays").value = d.settings.logDays; settingsFilled = true; }
+  } catch {}
+}
+function enter() {
+  $("login").hidden = true; $("app").hidden = false;
+  refreshSummary(); loadLogs(true);
+}
+if (token) enter();
+</script>
+</body>
+</html>
