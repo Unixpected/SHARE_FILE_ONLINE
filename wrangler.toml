@@ -9,9 +9,8 @@ crons = ["*/10 * * * *"]   # cleanup every 10 minutes (files + old log rows)
 B2_BUCKET   = "fileshare-tmp-yourname-482"
 B2_ENDPOINT = "s3.us-west-004.backblazeb2.com"
 B2_REGION   = "us-west-004"
-# Comma-separate several origins. The hyphen versions are there so you can move
-# off the underscore domain (see notes) without touching this file again.
-ALLOWED_ORIGIN = "https://unixpected.github.io,http://fileshare.unixpected05.online,https://fileshare.unixpected05.online,https://fileshare.unixpected05.online,http://fileshare.unixpected05.online"
+# Sites allowed to call this worker. Change it with move-domain.ps1 (see MOVE_DOMAIN.md).
+ALLOWED_ORIGIN = "https://fileshare.unixpected05.online,http://fileshare.unixpected05.online,https://unixpected.github.io"
 
 # Secrets (NOT stored here). Set with:
 #   npx wrangler secret put B2_KEY_ID
@@ -42,8 +41,7 @@ simple = { limit = 5, period = 60 }
 # Comments / settings / logs database (Cloudflare D1).
 #   npx wrangler d1 create share-comments
 #   npx wrangler d1 execute share-comments --remote --file=schema.sql
-# KEEP your real database_id if you already have one.
 [[d1_databases]]
 binding = "DB"
 database_name = "share-comments"
-database_id = "PASTE-YOUR-DATABASE-ID-HERE"
+database_id = "2e3815b0-26e8-47e8-9041-af0085251963"

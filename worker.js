@@ -12,6 +12,7 @@ const cors = (env) => ({
   "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN,
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  Vary: "Origin",
 });
 const json = (env, data, status = 200) =>
   new Response(JSON.stringify(data), {
@@ -61,6 +62,36 @@ async function getSettings(env) {
     /* table not created yet -> use defaults */
   }
   return s;
+}
+
+// ---------------------------------------------------------------------------
+// Extra allowed websites, editable on the admin page (settings key "domains").
+// The ALLOWED_ORIGIN variable in wrangler.toml is the permanent base list.
+// ---------------------------------------------------------------------------
+const DOMAIN_RX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/;
+const parseDomains = (text) => [
+  ...new Set(
+    String(text || "")
+      .split(/[\s,;]+/)
+      .map((s) => s.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
+      .filter(Boolean)
+  ),
+];
+async function getDomainList(env) {
+  if (!env.DB) return [];
+  try {
+    const row = await env.DB.prepare("SELECT value FROM settings WHERE key = 'domains'").first();
+    return parseDomains(row?.value);
+  } catch {
+    return [];
+  }
+}
+let domainCache = { t: 0, list: [] }; // cached 60 s per worker instance
+async function getExtraOrigins(env) {
+  if (Date.now() - domainCache.t < 60000) return domainCache.list;
+  const list = (await getDomainList(env)).flatMap((d) => [`https://${d}`, `http://${d}`]);
+  domainCache = { t: Date.now(), list };
+  return list;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,10 +151,21 @@ const validKey = (key) => typeof key === "string" && key.split("/").length === 2
 export default {
   async fetch(req, env, ctx) {
     const url = new URL(req.url);
-    // ALLOWED_ORIGIN may be a comma-separated list (GitHub Pages + your domain)
-    const allowed = env.ALLOWED_ORIGIN.split(",").map((s) => s.trim());
+    // Which website may call us? Base list from wrangler.toml + domains added on the admin page.
+    const base = env.ALLOWED_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
     const origin = req.headers.get("Origin");
-    env = { ...env, ALLOWED_ORIGIN: allowed.includes(origin) ? origin : allowed[0] };
+    let allow;
+    if (url.pathname.startsWith("/admin/") && origin) {
+      // Admin calls are protected by the password / bearer token (no cookies), so CORS adds no
+      // protection here. Allowing any origin means /admin.html still works on a brand-new domain,
+      // which is how you add that domain without any command line.
+      allow = origin;
+    } else {
+      let list = base;
+      if (origin && !base.includes(origin)) list = base.concat(await getExtraOrigins(env));
+      allow = list.includes(origin) ? origin : base[0];
+    }
+    env = { ...env, ALLOWED_ORIGIN: allow };
     if (req.method === "OPTIONS") return new Response(null, { headers: cors(env) });
 
     try {
@@ -311,7 +353,7 @@ export default {
           const up = await one("SELECT COUNT(*) AS n FROM logs WHERE event = 'upload_done' AND ts > ?", since);
           const vis = await one("SELECT COUNT(DISTINCT ip) AS n FROM logs WHERE ts > ?", since);
           const com = await one("SELECT COUNT(*) AS n FROM comments");
-          return json(env, { settings: await getSettings(env), limits: LIMITS, stats: { uploads24h: up.n, visitors24h: vis.n, comments: com.n } });
+          return json(env, { settings: await getSettings(env), domains: await getDomainList(env), limits: LIMITS, stats: { uploads24h: up.n, visitors24h: vis.n, comments: com.n } });
         }
 
         // Activity log with filters + cursor paging
@@ -370,20 +412,29 @@ export default {
         if (url.pathname === "/admin/settings" && req.method === "POST") {
           const body = await req.json().catch(() => ({}));
           const writes = [];
+          const upsert = (k, v) =>
+            env.DB.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, String(v));
           for (const k of Object.keys(LIMITS)) {
             if (body[k] === undefined) continue;
             const n = Math.round(Number(body[k]));
             const [lo, hi] = LIMITS[k];
             if (!Number.isFinite(n) || n < lo || n > hi) return json(env, { error: `${k} must be between ${lo} and ${hi}.` }, 400);
-            writes.push(
-              env.DB.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(k, String(n))
-            );
+            writes.push(upsert(k, n));
+          }
+          if (body.domains !== undefined) {
+            const list = parseDomains(body.domains);
+            if (list.length > 20) return json(env, { error: "Too many domains (maximum 20)." }, 400);
+            const bad = list.find((d) => !DOMAIN_RX.test(d));
+            if (bad) return json(env, { error: `"${bad}" is not a valid domain. Use letters, numbers, dots and hyphens only (no underscores), for example files.example.com` }, 400);
+            writes.push(upsert("domains", list.join(",")));
           }
           if (!writes.length) return json(env, { error: "Nothing to change." }, 400);
           await env.DB.batch(writes);
+          domainCache = { t: 0, list: [] };
           const settings = await getSettings(env);
-          log(env, ctx, req, "settings_changed", settings);
-          return json(env, { settings });
+          const domains = await getDomainList(env);
+          log(env, ctx, req, "settings_changed", { ...settings, domains: domains.join(",") });
+          return json(env, { settings, domains });
         }
 
         return json(env, { error: "Not found" }, 404);
