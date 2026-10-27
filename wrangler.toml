@@ -11,7 +11,7 @@ B2_ENDPOINT = "s3.us-west-004.backblazeb2.com"
 B2_REGION   = "us-west-004"
 # Comma-separate several origins. The hyphen versions are there so you can move
 # off the underscore domain (see notes) without touching this file again.
-ALLOWED_ORIGIN = "https://unixpected.github.io,http://file_share.unixpected05.online,https://file_share.unixpected05.online,https://file-share.unixpected05.online,http://file-share.unixpected05.online"
+ALLOWED_ORIGIN = "https://unixpected.github.io,http://fileshare.unixpected05.online,https://fileshare.unixpected05.online,https://fileshare.unixpected05.online,http://fileshare.unixpected05.online"
 
 # Secrets (NOT stored here). Set with:
 #   npx wrangler secret put B2_KEY_ID
